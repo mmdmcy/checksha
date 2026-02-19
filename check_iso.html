@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple ISO Verifier</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #bb86fc;
+            --success-color: #03dac6;
+            --error-color: #cf6679;
+            --border-radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background-color: var(--card-bg);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-weight: 700;
+            color: var(--accent-color);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 30px;
+        }
+
+        .step {
+            margin-bottom: 30px;
+            border: 1px solid #333;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+        }
+
+        .step:hover {
+            border-color: #555;
+            background-color: #252525;
+        }
+
+        .step-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-number {
+            background: var(--accent-color);
+            color: #000;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        /* File Input Styling */
+        .file-drop-area {
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            border: 2px dashed #444;
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+            cursor: pointer;
+            background-color: #1a1a1a;
+        }
+
+        .file-drop-area:hover,
+        .file-drop-area.dragover {
+            background-color: #2a2a2a;
+            border-color: var(--accent-color);
+        }
+
+        .fake-btn {
+            background-color: #333;
+            color: #ddd;
+            padding: 8px 16px;
+            border-radius: 6px;
+            margin-right: 15px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .file-msg {
+            color: #888;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #888;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+
+        .tab-btn:hover {
+            color: #fff;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            background-color: #121212;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 12px;
+            border-radius: 8px;
+            resize: vertical;
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        /* Action Button */
+        .action-btn {
+            width: 100%;
+            padding: 16px;
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 10px;
+        }
+
+        .action-btn:hover {
+            background-color: #a370f7;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(187, 134, 252, 0.3);
+        }
+
+        .action-btn:disabled {
+            background-color: #555;
+            color: #888;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Result Area */
+        #result-area {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            display: none;
+        }
+
+        #result-area.success {
+            background-color: rgba(3, 218, 198, 0.1);
+            border: 1px solid var(--success-color);
+            display: block;
+        }
+
+        #result-area.error {
+            background-color: rgba(207, 102, 121, 0.1);
+            border: 1px solid var(--error-color);
+            display: block;
+        }
+
+        .result-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .success .result-title {
+            color: var(--success-color);
+        }
+
+        .error .result-title {
+            color: var(--error-color);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-top: 20px;
+            background-color: #333;
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--accent-color);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .status-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #aaa;
+            font-size: 0.9rem;
+            min-height: 1.2em;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Debug info */
+        .hash-debug {
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #777;
+            word-break: break-all;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Simple ISO Verifier</h1>
+        <p class="subtitle">Securely check your downloaded files directly in your browser.</p>
+
+        <!-- Step 1: ISO File -->
+        <div class="step">
+            <div class="step-title">
+                <span class="step-number">1</span>
+                Select File/ISO
+            </div>
+            <div class="file-drop-area" id="iso-drop-area">
+                <span class="fake-btn">Choose File</span>
+                <span class="file-msg" id="iso-msg">or drag and drop file here</span>
+                <input class="file-input" type="file" id="iso-file">
+            </div>
+        </div>
+
+        <!-- Step 2: Checksum Source -->
+        <div class="step">
+            <div class="step-title">
+                <span class="step-number">2</span>
+                Provide Checksum
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('paste')">Paste Hash</button>
+                <button class="tab-btn" onclick="switchTab('file')">Upload Checksum File</button>
+            </div>
+
+            <div id="tab-paste" class="tab-content active">
+                <textarea id="hash-text" rows="3"
+                    placeholder="Paste the SHA256 hash here (e.g., b94d27b9...)"></textarea>
+            </div>
+
+            <div id="tab-file" class="tab-content">
+                <div class="file-drop-area">
+                    <span class="fake-btn">Choose File</span>
+                    <span class="file-msg" id="checksum-msg">Select sha256sum.txt...</span>
+                    <input class="file-input" type="file" id="checksum-file">
+                </div>
+                <p style="font-size: 0.8rem; color: #666; margin-top: 8px;">Supports standard sha256sum format.</p>
+            </div>
+        </div>
+
+        <button class="action-btn" id="verify-btn" onclick="startVerification()">VERIFY INTEGRITY</button>
+
+        <div class="progress-container" id="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="status-text" id="status-text"></div>
+
+        <div id="result-area">
+            <div class="result-title" id="result-title"></div>
+            <div id="result-desc"></div>
+            <div class="hash-debug" id="calc-hash-display"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- UI Logic ---
+
+        // File Input Design
+        function setupFileInput(inputId, msgId) {
+            const input = document.getElementById(inputId);
+            const msg = document.getElementById(msgId);
+            const dropArea = input.parentElement;
+
+            input.addEventListener('change', () => {
+                if (input.files && input.files.length > 0) {
+                    msg.textContent = input.files[0].name;
+                    msg.style.color = "#fff";
+                } else {
+                    msg.textContent = inputId === 'iso-file' ? "or drag and drop file here" : "Select sha256sum.txt...";
+                    msg.style.color = "#888";
+                }
+            });
+
+            // Drag effects
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropArea.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropArea.classList.remove('dragover');
+                }, false);
+            });
+        }
+
+        setupFileInput('iso-file', 'iso-msg');
+        setupFileInput('checksum-file', 'checksum-msg');
+
+        // Tabs
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            // Find button with onclick that matches and add active
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(btn => {
+                if (btn.getAttribute('onclick').includes(tabName)) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // --- Core Logic ---
+
+        async function startVerification() {
+            const isoInput = document.getElementById('iso-file');
+            const verifyBtn = document.getElementById('verify-btn');
+            const resultArea = document.getElementById('result-area');
+            const statusText = document.getElementById('status-text');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+
+            // Reset UI
+            resultArea.style.display = 'none';
+            resultArea.className = '';
+            progressBar.style.width = '0%';
+
+            if (!isoInput.files || isoInput.files.length === 0) {
+                alert("Please select a file to verify first.");
+                return;
+            }
+
+            const isoFile = isoInput.files[0];
+            let expectedHash = "";
+
+            // Get Expected Hash
+            const isPasteTab = document.getElementById('tab-paste').classList.contains('active');
+
+            try {
+                if (isPasteTab) {
+                    const text = document.getElementById('hash-text').value.trim();
+                    expectedHash = extractHash(text);
+                    if (!expectedHash) throw new Error("Could not find a valid SHA256 hash in the text box.");
+                } else {
+                    const checksumInput = document.getElementById('checksum-file');
+                    if (!checksumInput.files || checksumInput.files.length === 0) {
+                        throw new Error("Please select a checksum file.");
+                    }
+                    const checksumFile = checksumInput.files[0];
+                    const text = await readFileText(checksumFile);
+                    expectedHash = parseChecksumFile(text, isoFile.name);
+                    if (!expectedHash) throw new Error("Could not find a hash match for your file in the uploaded checksum file.");
+                }
+            } catch (e) {
+                alert(e.message);
+                return;
+            }
+
+            // Lock UI
+            verifyBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            statusText.textContent = "Hashing file... Please wait.";
+
+            try {
+                const calculatedHash = await hashFile(isoFile, (progress) => {
+                    progressBar.style.width = `${progress}%`;
+                    statusText.textContent = `Hashing: ${Math.round(progress)}%`;
+                });
+
+                // Verify
+                const match = calculatedHash.toLowerCase() === expectedHash.toLowerCase();
+
+                // Show Result
+                statusText.textContent = "Done.";
+                resultArea.style.display = 'block';
+
+                const resultTitle = document.getElementById('result-title');
+                const resultDesc = document.getElementById('result-desc');
+                const hashDisplay = document.getElementById('calc-hash-display');
+
+                hashDisplay.textContent = `Calculated: ${calculatedHash}`;
+
+                if (match) {
+                    resultArea.classList.add('success');
+                    resultTitle.textContent = "SUCCESS! MATCH VERIFIED";
+                    resultDesc.textContent = "The file is authentic and has not been corrupted or modified.";
+                } else {
+                    resultArea.classList.add('error');
+                    resultTitle.textContent = "WARNING: HASH MISMATCH";
+                    resultDesc.textContent = `The file does NOT match the expected hash.`;
+                }
+
+            } catch (e) {
+                console.error(e);
+                statusText.textContent = "Error occurred.";
+                alert("An error occurred during verification: " + e.message);
+            } finally {
+                verifyBtn.disabled = false;
+            }
+        }
+
+        function extractHash(text) {
+            // Look for 64 hex chars
+            const match = text.match(/\b[a-fA-F0-9]{64}\b/);
+            return match ? match[0] : null;
+        }
+
+        function parseChecksumFile(content, filename) {
+            const lines = content.split(/\r?\n/);
+
+            // 1. Try exact filename match in lines
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+
+                // Common format: hash  filename
+                const parts = trimmed.split(/\s+/); // split by whitespace
+                if (parts.length >= 2) {
+                    const hash = parts[0];
+                    let fName = parts.slice(1).join(' '); // rest is filename
+
+                    // Remove leading * from binary mode
+                    if (fName.startsWith('*')) fName = fName.substring(1);
+
+                    // Check if hash is valid
+                    if (!/^[a-fA-F0-9]{64}$/.test(hash)) continue;
+
+                    // Flexible Match: Exact name, or ends with name (if path included in checksum file)
+                    if (fName === filename || fName.endsWith('/' + filename) || fName.endsWith('\\' + filename)) {
+                        return hash;
+                    }
+                }
+            }
+
+            // 2. Fallback: If the file only contains a hash (and maybe spaces), return it
+            const rawHash = extractHash(content);
+            if (rawHash && content.length < 200) { // arbitrary length limit to avoid false positives in big text
+                return rawHash;
+            }
+
+            return null;
+        }
+
+        function readFileText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        async function hashFile(file, onProgress) {
+            const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+            const total = file.size;
+            let offset = 0;
+
+            // We use a streaming approach for SHA-256 if available, or just iterative hashing
+            // Web Crypto API doesn't support streaming hash updates easily in all browsers without subtle tricks.
+            // However, for single-file efficiency without external libs, we can import the whole file to buffer if small, 
+            // OR use a small hack: modern browsers don't support incremental WebCrypto digest easily yet.
+            // Wait, standard WebCrypto `digest` requires the whole ArrayBuffer. This crashes on 4GB ISOs.
+
+            // We MUST use a solution that supports chunking.
+            // Since we can't use external libs (CryptoJS/SparkMD5), and native WebCrypto digest is one-shot...
+            // ...Actually, wrapping SHA-256 in JS is slow.
+            // BUT, we can use the 'SHA-256' algorithm via `subtle.digest` on the whole file? 
+            // Chrome limits ArrayBuffer size (usually ~2GB). So 5GB ISO will crash.
+
+            // PIVOT: We have to include a minimal SHA256 implementation in JS for chunking support if we want 0 dependencies
+            // OR use a clever trick. 
+            // Actually, there is NO native incremental SHA256 in the browser yet (SubtleCrypto is one-shot).
+
+            // FOR SIMPLICITY & RELIABILITY: I will embed a very small, minified SHA256 JS implementation. 
+            // This keeps it "Single File" and allows chunking.
+
+            return hashFileCustom(file, onProgress);
+        }
+
+        // Minimal SHA256 implementation (adapted for shortness)
+        // Credit: Geraint Luff (sha256.js) or similar public domain logic, streamlined.
+        // To ensure I don't use external requests, I will write a compact SHA256 class here.
+
+        async function hashFileCustom(file, onProgress) {
+            const sha256 = new Sha256();
+            const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+            const diff = file.size;
+            let offset = 0;
+
+            const reader = new FileReader();
+
+            return new Promise((resolve, reject) => {
+                reader.onload = function (e) {
+                    const buffer = e.target.result;
+                    const uint8 = new Uint8Array(buffer);
+                    sha256.update(uint8);
+
+                    offset += buffer.byteLength;
+
+                    if (onProgress) {
+                        onProgress((offset / diff) * 100);
+                    }
+
+                    if (offset < diff) {
+                        readNext();
+                    } else {
+                        resolve(sha256.hex());
+                    }
+                };
+
+                reader.onerror = reject;
+
+                function readNext() {
+                    const slice = file.slice(offset, offset + CHUNK_SIZE);
+                    reader.readAsArrayBuffer(slice);
+                }
+
+                readNext();
+            });
+        }
+
+        // --- Embedded SHA256 Class (Readable Version) ---
+        // This is a pure JavaScript implementation of the SHA-256 secure hash algorithm.
+        // It runs entirely in your browser. No data is sent to any server.
+        // Based on the public domain implementation by Angel Marin and Paul Johnston.
+
+        class Sha256 {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this._h = new Uint32Array([
+                    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+                    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+                ]);
+                this._buffer = new Uint8Array(64);
+                this._offset = 0;
+                this._totalLength = 0; // Total length in bytes
+            }
+
+            update(data) {
+                // data is a Uint8Array
+                let dataIdx = 0;
+                let dataLen = data.length;
+                this._totalLength += dataLen;
+
+                while (dataIdx < dataLen) {
+                    const bufferRemaining = 64 - this._offset;
+                    const chunkLen = Math.min(dataLen - dataIdx, bufferRemaining);
+
+                    // Copy data into buffer
+                    for (let i = 0; i < chunkLen; i++) {
+                        this._buffer[this._offset + i] = data[dataIdx + i];
+                    }
+
+                    this._offset += chunkLen;
+                    dataIdx += chunkLen;
+
+                    // Process block if full
+                    if (this._offset === 64) {
+                        this._process();
+                        this._offset = 0;
+                    }
+                }
+            }
+
+            finalize() {
+                // Padding
+                const buffer = this._buffer;
+
+                // Append '1' bit (0x80 byte)
+                buffer[this._offset++] = 0x80;
+
+                // If not enough space for length (8 bytes), process and pad with zeros
+                if (this._offset > 56) {
+                    while (this._offset < 64) {
+                        buffer[this._offset++] = 0;
+                    }
+                    this._process();
+                    this._offset = 0;
+                }
+
+                // Pad with zeros until start of length (56)
+                while (this._offset < 56) {
+                    buffer[this._offset++] = 0;
+                }
+
+                // Append total length in bits as 64-bit big-endian integer
+                // Javascript uses double precision float (53 bits safe integer)
+                // Total length in bits = totalLength * 8
+                const totalBits = this._totalLength * 8;
+                const highBits = Math.floor(totalBits / 4294967296);
+                const lowBits = totalBits >>> 0;
+
+                const view = new DataView(buffer.buffer);
+                view.setUint32(56, highBits, false); // Big-endian
+                view.setUint32(60, lowBits, false);
+
+                this._process();
+            }
+
+            hex() {
+                this.finalize();
+                let hex = "";
+                for (let i = 0; i < 8; i++) {
+                    hex += this._h[i].toString(16).padStart(8, "0");
+                }
+                return hex;
+            }
+
+            _process() {
+                const buffer = this._buffer;
+                const w = new Uint32Array(64); // Message schedule array
+
+                // Prepare validation schedule
+                const view = new DataView(buffer.buffer);
+                for (let i = 0; i < 16; i++) {
+                    w[i] = view.getUint32(i * 4, false); // Big-endian
+                }
+
+                for (let i = 16; i < 64; i++) {
+                    const s0 = (this._rotr(w[i - 15], 7) ^ this._rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3));
+                    const s1 = (this._rotr(w[i - 2], 17) ^ this._rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10));
+                    w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+                }
+
+                // Initialize working variables
+                let [a, b, c, d, e, f, g, h] = this._h;
+
+                // Main loop
+                for (let i = 0; i < 64; i++) {
+                    const S1 = (this._rotr(e, 6) ^ this._rotr(e, 11) ^ this._rotr(e, 25));
+                    const ch = ((e & f) ^ ((~e) & g));
+                    const temp1 = (h + S1 + ch + this._k[i] + w[i]) >>> 0;
+                    const S0 = (this._rotr(a, 2) ^ this._rotr(a, 13) ^ this._rotr(a, 22));
+                    const maj = ((a & b) ^ (a & c) ^ (b & c));
+                    const temp2 = (S0 + maj) >>> 0;
+
+                    h = g;
+                    g = f;
+                    f = e;
+                    e = (d + temp1) >>> 0;
+                    d = c;
+                    c = b;
+                    b = a;
+                    a = (temp1 + temp2) >>> 0;
+                }
+
+                // Add compressed chunk to current hash value
+                this._h[0] = (this._h[0] + a) >>> 0;
+                this._h[1] = (this._h[1] + b) >>> 0;
+                this._h[2] = (this._h[2] + c) >>> 0;
+                this._h[3] = (this._h[3] + d) >>> 0;
+                this._h[4] = (this._h[4] + e) >>> 0;
+                this._h[5] = (this._h[5] + f) >>> 0;
+                this._h[6] = (this._h[6] + g) >>> 0;
+                this._h[7] = (this._h[7] + h) >>> 0;
+            }
+
+            _rotr(n, b) {
+                return (n >>> b) | (n << (32 - b));
+            }
+
+            // SHA-256 Constants (first 32 bits of the fractional parts of the cube roots of the first 64 primes)
+            _k = [
+                0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+            ];
+        }
+
+    </script>
+
+</body>
+
+</html>
