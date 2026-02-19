@@ -373,6 +373,9 @@
                 if (input.files && input.files.length > 0) {
                     msg.textContent = input.files[0].name;
                     msg.style.color = "#fff";
+                    if (inputId === 'iso-file') {
+                        onFileSelected(input.files[0]);
+                    }
                 } else {
                     msg.textContent = inputId === 'iso-file' ? "or drag and drop file here" : "Select sha256sum.txt...";
                     msg.style.color = "#888";
@@ -393,6 +396,16 @@
                     e.preventDefault();
                     e.stopPropagation();
                     dropArea.classList.remove('dragover');
+                    if (eventName === 'drop' && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        input.files = e.dataTransfer.files;
+                        // Manually trigger change or update UI
+                        const file = e.dataTransfer.files[0];
+                        msg.textContent = file.name;
+                        msg.style.color = "#fff";
+                        if (inputId === 'iso-file') {
+                            onFileSelected(file);
+                        }
+                    }
                 }, false);
             });
         }

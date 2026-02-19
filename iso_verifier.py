@@ -40,6 +40,7 @@ class ISOVerifierApp:
         self.pasted_checksum = tk.StringVar()
         self.status_message = tk.StringVar(value="Ready to verify.")
         self.is_verifying = False
+        self.last_calculated_hash = None
 
         self.create_widgets()
 
@@ -119,6 +120,52 @@ class ISOVerifierApp:
             self.iso_path.set(filename)
             self.status_message.set("Ready to verify.")
             self.status_label.config(foreground="black")
+            # Auto-calculate hash
+            self.start_hashing_only()
+
+    def start_hashing_only(self):
+        iso_file = self.iso_path.get()
+        if not iso_file or not os.path.exists(iso_file):
+            return
+
+        self.input_lock(True)
+        self.status_message.set("Calculating hash...")
+        self.progress['value'] = 0
+        
+        thread = threading.Thread(target=self.hashing_process, args=(iso_file,))
+        thread.daemon = True
+        thread.start()
+
+    def hashing_process(self, iso_file):
+        try:
+            file_size = os.path.getsize(iso_file)
+            sha256_hash = hashlib.sha256()
+            chunk_size = 65536 
+            bytes_read = 0
+            last_update_percent = -1
+            
+            with open(iso_file, "rb") as f:
+                for byte_block in iter(lambda: f.read(chunk_size), b""):
+                    sha256_hash.update(byte_block)
+                    bytes_read += len(byte_block)
+                    if file_size > 0:
+                        progress_val = (bytes_read / file_size) * 100
+                        # Only update every 1% to avoid flooding the GUI thread
+                        if int(progress_val) > last_update_percent:
+                            self.root.after(0, self.update_progress, progress_val)
+                            last_update_percent = int(progress_val)
+
+            calculated_hash = sha256_hash.hexdigest()
+            self.root.after(0, self.hashing_complete, calculated_hash)
+
+        except Exception as e:
+            self.root.after(0, self.verification_error, str(e))
+
+    def hashing_complete(self, calculated_hash):
+        self.input_lock(False)
+        self.status_message.set(f"Calculated: {calculated_hash}")
+        # Store for verification
+        self.last_calculated_hash = calculated_hash
 
     def browse_checksum(self):
         filename = filedialog.askopenfilename(title="Select Checksum File", filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
@@ -129,12 +176,17 @@ class ISOVerifierApp:
         if self.is_verifying:
             return
 
-        iso_file = self.iso_path.get()
-        if not iso_file or not os.path.exists(iso_file):
-            messagebox.showerror("Error", "Please select a valid ISO file first.")
-            return
+        # Check if we have a hash already?
+        if hasattr(self, 'last_calculated_hash') and self.last_calculated_hash:
+             calculated_hash = self.last_calculated_hash
+        else:
+             # Need to calc (shouldn't happen if flow is followed, but safety)
+             self.start_hashing_only()
+             return 
 
-        # Determine source of hash
+        # ... (rest of logic uses calculated_hash)
+        
+        # Determine source of expected hash
         expected_hash = ""
         current_tab = self.notebook.index(self.notebook.select())
         
@@ -151,7 +203,7 @@ class ISOVerifierApp:
             
             # Parse the checksum file
             try:
-                expected_hash = self.parse_checksum_file(checksum_file, iso_file)
+                expected_hash = self.parse_checksum_file(checksum_file, self.iso_path.get())
                 if not expected_hash:
                     messagebox.showerror("Error", "Could not find a hash for the selected ISO in the checksum file.")
                     return
@@ -159,16 +211,17 @@ class ISOVerifierApp:
                 messagebox.showerror("Error", f"Failed to read checksum file: {e}")
                 return
 
-        # Start threading
-        self.is_verifying = True
-        self.verify_btn.config(state="disabled")
-        self.input_lock(True)
-        self.status_message.set("Verifying... This may take a moment for large files.")
-        self.progress['value'] = 0
-        
-        thread = threading.Thread(target=self.verify_process, args=(iso_file, expected_hash))
-        thread.daemon = True
-        thread.start()
+        # Immediate Compare
+        self.compare_hashes(expected_hash, self.last_calculated_hash)
+
+    def compare_hashes(self, expected, calculated):
+        match = calculated.lower() == expected.lower()
+        self.verification_complete(match, calculated)
+    
+    # Legacy method kept or refactored? 
+    # Logic moved to separate functions for auto-hash flow.
+    # verify_process removed as it is split into hashing_process + compare.
+    # But wait, original code had verify_process. I need to remove it or replace it.
 
     def input_lock(self, lock):
         state = "disabled" if lock else "normal"
@@ -221,38 +274,16 @@ class ISOVerifierApp:
 
         return None
 
-    def verify_process(self, iso_file, expected_hash):
-        try:
-            file_size = os.path.getsize(iso_file)
-            sha256_hash = hashlib.sha256()
-            
-            chunk_size = 65536 # 64KB chunks
-            
-            bytes_read = 0
-            with open(iso_file, "rb") as f:
-                for byte_block in iter(lambda: f.read(chunk_size), b""):
-                    sha256_hash.update(byte_block)
-                    bytes_read += len(byte_block)
-                    
-                    # Update progress
-                    # Use self.root.after to safely update GUI from thread
-                    if file_size > 0:
-                        progress_val = (bytes_read / file_size) * 100
-                        self.root.after(0, self.update_progress, progress_val)
-
-            calculated_hash = sha256_hash.hexdigest()
-            
-            # Compare (case insensitive)
-            match = calculated_hash.lower() == expected_hash.lower()
-            
-            # Schedule result display
-            self.root.after(0, lambda: self.verification_complete(match, calculated_hash))
-
-        except Exception as e:
-            self.root.after(0, lambda: self.verification_error(str(e)))
+    # Combined verification logic replaced by separated flow
+    pass
 
     def update_progress(self, value):
         self.progress['value'] = value
+        
+        # Spinner animation
+        spin_chars = "|/-\\"
+        current_idx = int((value * 5) % 4) # Change speed based on value
+        self.status_message.set(f"Calculating Hash... {spin_chars[current_idx]} {int(value)}%")
 
     def verification_complete(self, match, calculated_hash):
         self.is_verifying = False

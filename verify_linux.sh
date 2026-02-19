@@ -29,13 +29,38 @@ echo
 echo "Calculating SHA256 hash... Please wait..."
 echo
 
-# Detect tool
+# Spinner function
+spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='|/-\'
+    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
+}
+
+# Detect tool and run in background
 if command -v sha256sum &> /dev/null; then
     # Linux
-    hash_output=$(sha256sum "$filepath" | awk '{print $1}')
+    sha256sum "$filepath" | awk '{print $1}' > /tmp/iso_hash_output &
+    PID=$!
+    spinner $PID
+    wait $PID
+    hash_output=$(cat /tmp/iso_hash_output)
+    rm /tmp/iso_hash_output
 elif command -v shasum &> /dev/null; then
     # Mac
-    hash_output=$(shasum -a 256 "$filepath" | awk '{print $1}')
+    shasum -a 256 "$filepath" | awk '{print $1}' > /tmp/iso_hash_output &
+    PID=$!
+    spinner $PID
+    wait $PID
+    hash_output=$(cat /tmp/iso_hash_output)
+    rm /tmp/iso_hash_output
 else
     echo -e "${RED}Error: Neither sha256sum nor shasum found.${NC}"
     exit 1
