@@ -1,3 +1,19 @@
+#!/usr/bin/env python3
+"""
+Simple ISO Verifier GUI
+-----------------------
+A lightweight GUI for verifying SHA256 checksums.
+
+DEPENDENCIES:
+This script uses ONLY standard Python libraries:
+- tkinter (GUI)
+- hashlib (Hashing)
+- os (File operations)
+- threading (Background processing)
+
+No `pip install` required. Just run with a standard Python installation.
+"""
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk

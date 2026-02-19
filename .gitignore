@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Testing/User Files
+*.iso
+*.img
+sha256sum.txt
+test_logic.py
+dummy.txt
+temp_checksum.txt
+
+# Editor/IDE
+.vscode/
+.idea/
